@@ -79,7 +79,7 @@ backend/
 ### Clone the repository
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/AhmadSarfraz2004/cohort-9-mern-16564-ahmad.git
 ```
 
 ### Install backend dependencies
