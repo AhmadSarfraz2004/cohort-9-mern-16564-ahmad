@@ -10,23 +10,23 @@ export class AppError extends Error {
         Error.captureStackTrace(this, this.constructor);
     }
 
-    static badRequest(message = "Bad Request") {
+    static badRequest(message = "Bad Request"): AppError {
         return new AppError(message, 400);
     }
 
-    static unauthorized(message = "Unauthorized") {
+    static unauthorized(message = "Unauthorized"): AppError {
         return new AppError(message, 401);
     }
 
-    static forbidden(message = "Forbidden") {
+    static forbidden(message = "Forbidden"): AppError {
         return new AppError(message, 403);
     }
 
-    static notFound(message = "Resource not found") {
+    static notFound(message = "Resource not found"): AppError {
         return new AppError(message, 404);
     }
 
-    static conflict(message = "Conflict") {
+    static conflict(message = "Conflict"): AppError {
         return new AppError(message, 409);
     }
 }

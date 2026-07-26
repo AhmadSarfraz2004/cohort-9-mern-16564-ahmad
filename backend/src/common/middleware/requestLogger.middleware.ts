@@ -7,12 +7,19 @@ const options: Options<Request, Response> = {
     logger,
 
     genReqId: (req, res) => {
-        const existingId = req.id ?? (req.headers['x-request-id'] as string);
-        if (existingId) {
-            return existingId;
+        if (typeof req.id === "string") {
+            return req.id;
         }
+
+        const header = req.headers["x-request-id"];
+
+        if (typeof header === "string") {
+            res.setHeader("x-request-id", header);
+            return header;
+        }
+
         const newId = randomUUID();
-        res.setHeader('x-request-id', newId);
+        res.setHeader("x-request-id", newId);
         return newId;
     },
 

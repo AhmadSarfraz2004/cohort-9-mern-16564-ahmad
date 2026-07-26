@@ -1,7 +1,7 @@
-import { NextFunction, Request, Response } from "express";
+import { NextFunction, Request, RequestHandler, Response } from "express";
 import { AppError } from "../errors/AppError.js";
 
-export const notFoundHandler = (
+export const notFoundHandler: RequestHandler = (
     req: Request,
     _res: Response,
     next: NextFunction
