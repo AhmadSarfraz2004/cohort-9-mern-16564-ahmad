@@ -45,7 +45,10 @@ export const authService = {
         const accessToken = jwtUtils.generateAccessToken(payload);
         const refreshToken = jwtUtils.generateRefreshToken(payload);
 
-        await authRepository.updateRefreshToken(user._id.toString(), refreshToken);
+        await authRepository.setRefreshTokenHash(
+            user._id.toString(),
+            passwordUtils.hashToken(refreshToken)
+        );
 
         logger.info({ userId: user._id }, 'User logged in');
 
@@ -64,22 +67,31 @@ export const authService = {
             throw AppError.unauthorized('Invalid or expired refresh token');
         }
 
-        const user = await authRepository.findByRefreshToken(token);
-        if (!user || user._id.toString() !== payload.userId) {
-            throw AppError.unauthorized('Refresh token does not match any active session');
+        const presentedHash = passwordUtils.hashToken(token);
+        const newPayload = { userId: payload.userId, role: payload.role };
+        const newRefreshToken = jwtUtils.generateRefreshToken(newPayload);
+        const newHash = passwordUtils.hashToken(newRefreshToken);
+
+        // Atomic: only succeeds if presentedHash still matches what's stored —
+        // closes the window where a stolen or replayed token could be reused
+        // between verification and update.
+        const updatedUser = await authRepository.rotateRefreshTokenHash(
+            payload.userId,
+            presentedHash,
+            newHash
+        );
+
+        if (!updatedUser) {
+            throw AppError.unauthorized('Refresh token has already been used or revoked');
         }
 
-        const newPayload = { userId: user._id.toString(), role: user.role };
         const accessToken = jwtUtils.generateAccessToken(newPayload);
-        const newRefreshToken = jwtUtils.generateRefreshToken(newPayload);
-
-        await authRepository.updateRefreshToken(user._id.toString(), newRefreshToken);
 
         return { accessToken, refreshToken: newRefreshToken };
     },
 
     logout: async (userId: string) => {
-        await authRepository.updateRefreshToken(userId, null);
+        await authRepository.setRefreshTokenHash(userId, null);
         logger.info({ userId }, 'User logged out');
     },
 

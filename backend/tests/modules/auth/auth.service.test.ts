@@ -118,20 +118,14 @@ describe('authService', () => {
       };
 
       sinon.stub(authRepository, 'findByEmail').resolves(fakeUser as any);
-
       sinon.stub(passwordUtils, 'comparePassword').resolves(true);
-
-      sinon
-        .stub(jwtUtils, 'generateAccessToken')
-        .returns('fake_access_token');
-
-      sinon
-        .stub(jwtUtils, 'generateRefreshToken')
-        .returns('fake_refresh_token');
+      sinon.stub(passwordUtils, 'hashToken').returns('hashed_refresh_token');
+      sinon.stub(jwtUtils, 'generateAccessToken').returns('fake_access_token');
+      sinon.stub(jwtUtils, 'generateRefreshToken').returns('fake_refresh_token');
 
       const updateStub = sinon
-        .stub(authRepository, 'updateRefreshToken')
-        .resolves();
+        .stub(authRepository, 'setRefreshTokenHash')
+        .resolves({} as any);
 
       const result = await authService.login({
         email: 'test@test.com',
@@ -143,16 +137,16 @@ describe('authService', () => {
       expect(result.user.email).to.equal('test@test.com');
 
       expect(
-        updateStub.calledWith('user123', 'fake_refresh_token')
+        updateStub.calledWith('user123', 'hashed_refresh_token')
       ).to.be.true;
     });
   });
 
   describe('logout', () => {
-    it('should call updateRefreshToken with null', async () => {
+    it('should clear the refresh token hash', async () => {
       const updateStub = sinon
-        .stub(authRepository, 'updateRefreshToken')
-        .resolves();
+        .stub(authRepository, 'setRefreshTokenHash')
+        .resolves({} as any);
 
       await authService.logout('user123');
 

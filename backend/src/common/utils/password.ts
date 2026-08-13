@@ -1,4 +1,5 @@
 import bcrypt from 'bcrypt';
+import { createHash } from 'crypto';
 
 const SALT_ROUNDS = 10;
 
@@ -12,5 +13,9 @@ export const passwordUtils = {
     hashedPassword: string
   ): Promise<boolean> => {
     return bcrypt.compare(plainPassword, hashedPassword);
+  },
+
+  hashToken: (token: string): string => {
+    return createHash('sha256').update(token).digest('hex');
   },
 };

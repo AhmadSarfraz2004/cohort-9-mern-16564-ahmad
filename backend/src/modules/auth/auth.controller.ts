@@ -3,6 +3,7 @@ import { authService } from './auth.service.js';
 import { asyncHandler } from '../../common/utils/asyncHandler.js';
 import { AppError } from '../../common/errors/AppError.js';
 import { env } from '../../config/env.config.js';
+import { RegisterDto, LoginDto } from './auth.validation.js';
 
 const REFRESH_COOKIE_OPTIONS = {
     httpOnly: true,
@@ -12,14 +13,13 @@ const REFRESH_COOKIE_OPTIONS = {
 }
 
 export const authController = {
-    register: asyncHandler(async (req: Request, res: Response) => {
-        const user = await authService.register(req.body);
+    register: asyncHandler(async (req: Request<{}, {}, RegisterDto>, res: Response) => {
+        const user = await authService.register(req.body); // req.body now typed as RegisterDto
         res.status(201).json({ success: true, data: user });
     }),
 
-    login: asyncHandler(async (req: Request, res: Response) => {
+    login: asyncHandler(async (req: Request<{}, {}, LoginDto>, res: Response) => {
         const { user, accessToken, refreshToken } = await authService.login(req.body);
-
         res.cookie('refreshToken', refreshToken, REFRESH_COOKIE_OPTIONS);
         res.status(200).json({ success: true, data: { user, accessToken } });
     }),
