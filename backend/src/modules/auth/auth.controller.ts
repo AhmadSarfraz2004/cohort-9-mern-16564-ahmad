@@ -59,3 +59,4 @@ export const authController = {
         res.status(200).json({ success: true, data: user });
     }),
 }
+// CodeRabit review
