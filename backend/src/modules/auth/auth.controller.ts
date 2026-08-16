@@ -5,12 +5,34 @@ import { AppError } from '../../common/errors/AppError.js';
 import { env } from '../../config/env.config.js';
 import { RegisterDto, LoginDto } from './auth.validation.js';
 
+const durationToMs = (duration: string): number => {
+    const match = duration.match(/^(\d+)([smhd])$/);
+
+    if (!match) {
+        throw new Error(`Invalid duration format: ${duration}`);
+    }
+
+    const value = Number(match[1]);
+    const unit = match[2];
+
+    const multipliers = {
+        s: 1000,
+        m: 60 * 1000,
+        h: 60 * 60 * 1000,
+        d: 24 * 60 * 60 * 1000,
+    };
+
+    return value * multipliers[unit as keyof typeof multipliers];
+};
+
 const REFRESH_COOKIE_OPTIONS = {
     httpOnly: true,
     secure: env.NODE_ENV === 'production',
     sameSite: 'strict' as const,
-    maxAge: 7 * 24 * 60 * 60 * 1000,
-}
+    path: '/api/auth',
+    maxAge: durationToMs(env.JWT_REFRESH_EXPIRES_IN),
+};
+
 
 export const authController = {
     register: asyncHandler(async (req: Request<{}, {}, RegisterDto>, res: Response) => {
@@ -59,4 +81,3 @@ export const authController = {
         res.status(200).json({ success: true, data: user });
     }),
 }
-// CodeRabit review

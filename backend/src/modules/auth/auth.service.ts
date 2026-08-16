@@ -5,30 +5,55 @@ import { AppError } from '../../common/errors/AppError.js';
 import { RegisterDto, LoginDto } from './auth.validation.js';
 import logger from '../../config/logger.config.js';
 
+const isDuplicateKeyError = (error: unknown): boolean => {
+    return (
+        typeof error === 'object' &&
+        error !== null &&
+        'code' in error &&
+        (error as { code: unknown }).code === 11000
+    );
+};
+
 export const authService = {
     register: async (data: RegisterDto) => {
-        const existingUser = await authRepository.findByEmail(data.email);
-        if (existingUser) {
-            throw AppError.conflict('Email is already registered');
-        }
+    const existingUser = await authRepository.findByEmail(data.email);
 
-        const hashedPassword = await passwordUtils.hashPassword(data.password);
+    if (existingUser) {
+        throw AppError.conflict('Email is already registered');
+    }
 
-        const user = await authRepository.create({
+    const hashedPassword = await passwordUtils.hashPassword(data.password);
+
+    let user;
+
+    try {
+        user = await authRepository.create({
             name: data.name,
             email: data.email,
             password: hashedPassword,
         });
+    } catch (error: unknown) {
+        if (
+            typeof error === 'object' &&
+            error !== null &&
+            'code' in error &&
+            (error as { code: unknown }).code === 11000
+        ) {
+            throw AppError.conflict('Email is already registered');
+        }
 
-        logger.info({ userId: user._id }, 'New user registered');
+        throw error;
+    }
 
-        return {
-            id: user._id,
-            name: user.name,
-            email: user.email,
-            role: user.role,
-        };
-    },
+    logger.info({ userId: user._id }, 'New user registered');
+
+    return {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+    };
+},
 
     login: async (data: LoginDto) => {
         const user = await authRepository.findByEmail(data.email, true);
@@ -59,36 +84,50 @@ export const authService = {
         };
     },
 
-    refreshToken: async (token: string) => {
-        let payload;
-        try {
-            payload = jwtUtils.verifyRefreshToken(token);
-        } catch {
-            throw AppError.unauthorized('Invalid or expired refresh token');
-        }
+  refreshToken: async (token: string) => {
+    let payload;
 
-        const presentedHash = passwordUtils.hashToken(token);
-        const newPayload = { userId: payload.userId, role: payload.role };
-        const newRefreshToken = jwtUtils.generateRefreshToken(newPayload);
-        const newHash = passwordUtils.hashToken(newRefreshToken);
+    try {
+        payload = jwtUtils.verifyRefreshToken(token);
+    } catch {
+        throw AppError.unauthorized('Invalid or expired refresh token');
+    }
 
-        // Atomic: only succeeds if presentedHash still matches what's stored —
-        // closes the window where a stolen or replayed token could be reused
-        // between verification and update.
-        const updatedUser = await authRepository.rotateRefreshTokenHash(
-            payload.userId,
-            presentedHash,
-            newHash
+    const user = await authRepository.findById(payload.userId);
+
+    if (!user) {
+        throw AppError.unauthorized('User not found');
+    }
+
+    const presentedHash = passwordUtils.hashToken(token);
+
+    const newPayload = {
+        userId: user._id.toString(),
+        role: user.role,
+    };
+
+    const newRefreshToken = jwtUtils.generateRefreshToken(newPayload);
+    const newHash = passwordUtils.hashToken(newRefreshToken);
+
+    const updatedUser = await authRepository.rotateRefreshTokenHash(
+        payload.userId,
+        presentedHash,
+        newHash
+    );
+
+    if (!updatedUser) {
+        throw AppError.unauthorized(
+            'Refresh token has already been used or revoked'
         );
+    }
 
-        if (!updatedUser) {
-            throw AppError.unauthorized('Refresh token has already been used or revoked');
-        }
+    const accessToken = jwtUtils.generateAccessToken(newPayload);
 
-        const accessToken = jwtUtils.generateAccessToken(newPayload);
-
-        return { accessToken, refreshToken: newRefreshToken };
-    },
+    return {
+        accessToken,
+        refreshToken: newRefreshToken,
+    };
+},
 
     logout: async (userId: string) => {
         await authRepository.setRefreshTokenHash(userId, null);

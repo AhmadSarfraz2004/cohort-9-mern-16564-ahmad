@@ -22,14 +22,13 @@ export const authRepository = {
     return UserModel.findById(id);
   },
 
-
   setRefreshTokenHash: async (
     userId: string,
     refreshTokenHash: string | null
   ): Promise<IUserDocument | null> => {
     return UserModel.findByIdAndUpdate(
       userId,
-      { refreshTokenHash },
+      { refreshToken: refreshTokenHash },
       { new: true }
     );
   },
@@ -40,8 +39,8 @@ export const authRepository = {
     newHash: string
   ): Promise<IUserDocument | null> => {
     return UserModel.findOneAndUpdate(
-      { _id: userId, refreshTokenHash: currentHash },
-      { refreshTokenHash: newHash },
+      { _id: userId, refreshToken: currentHash },
+      { refreshToken: newHash },
       { new: true }
     );
   },
@@ -49,6 +48,6 @@ export const authRepository = {
   findById_withRefreshHash: async (
     userId: string
   ): Promise<IUserDocument | null> => {
-    return UserModel.findById(userId).select('+refreshTokenHash');
+    return UserModel.findById(userId).select('+refreshToken');
   },
 };

@@ -15,7 +15,11 @@ declare global {
     }
 }
 
-export const authMiddleware = (req: Request, res: Response, next: NextFunction) => {
+export const authMiddleware = (
+    req: Request,
+    _res: Response,
+    next: NextFunction
+): void => {
     const authHeader = req.headers.authorization;
 
     if (!authHeader?.startsWith('Bearer ')) {
@@ -24,11 +28,18 @@ export const authMiddleware = (req: Request, res: Response, next: NextFunction) 
 
     const token = authHeader.split(' ')[1];
 
+    let payload;
+
     try {
-        const payload = jwtUtils.verifyAccessToken(token);
-        req.user = { userId: payload.userId, role: payload.role };
-        next();
+        payload = jwtUtils.verifyAccessToken(token);
     } catch {
         throw AppError.unauthorized('Invalid or expired access token');
     }
+
+    req.user = {
+        userId: payload.userId,
+        role: payload.role,
+    };
+
+    next();
 };
